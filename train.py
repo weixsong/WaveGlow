@@ -119,9 +119,11 @@ def main():
 
     output_audio, log_s_list, log_det_W_list = glow.create_forward_network(audio_placeholder, lc_placeholder)
     loss = compute_waveglow_loss(output_audio, log_s_list, log_det_W_list)
+    print("create network finished")
 
     grads = optimizer.compute_gradients(loss, var_list=tf.trainable_variables())
     train_ops = optimizer.apply_gradients(grads, global_step=global_step)
+    print('compute gradients finished')
 
     tf.summary.scalar('loss', loss)
 
@@ -134,6 +136,7 @@ def main():
     # Set up session
     init = tf.global_variables_initializer()
     sess.run(init)
+    print('parameters initialization finished')
 
     saver = tf.train.Saver(var_list=tf.trainable_variables(), max_to_keep=30)
 
@@ -153,6 +156,7 @@ def main():
 
         print("restore model successfully!")
 
+    print('start training.')
     last_saved_step = saved_global_step
     try:
         for step in range(saved_global_step + 1, hparams.train_steps):

@@ -14,3 +14,6 @@ python train.py --filelist=xxx --wave_dir=xxx --lc_dir=xxx
 ```
 
 model parameters are in file params.py
+
+# Issues
+* **tf.nn.conv2d()** for dilated convolution is not supported on tensorflow CPU implementation, so not easy to debug on CPU machine.

@@ -205,7 +205,7 @@ def main():
         if step > last_saved_step:
             save(saver, sess, args.logdir, step)
         coord.request_stop()
-        coord.join(reader.threads)
+        coord.join()
 
 
 if __name__ == '__main__':

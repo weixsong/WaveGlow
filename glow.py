@@ -4,26 +4,23 @@ from params import hparams
 
 
 def create_variable(name, shape):
-    '''Create a convolution filter variable with the specified name and shape,
-    and initialize it using Xavier initialition.'''
-    initializer = tf.contrib.layers.xavier_initializer_conv2d()
-    variable = tf.Variable(initializer(shape=shape), name=name)
-    return variable
+    with tf.device("/cpu:0"):
+        initializer = tf.contrib.layers.xavier_initializer_conv2d()
+        variable = tf.get_variable(initializer=initializer(shape=shape), name=name)
+        return variable
 
 
 def create_bias_variable(name, shape):
-    '''Create a bias variable with the specified name and shape and initialize
-    it to zero.'''
-    initializer = tf.constant_initializer(value=0.0, dtype=tf.float32)
-    return tf.Variable(initializer(shape=shape), name)
+    with tf.device("/cpu:0"):
+        initializer = tf.constant_initializer(value=0.0, dtype=tf.float32)
+        return tf.get_variable(initializer=initializer(shape=shape), name=name)
 
 
 def create_variable_zeros(name, shape):
-    '''Create a convolution filter variable with the specified name and shape,
-    and initialize it using Xavier initialition.'''
-    initializer = tf.constant_initializer(0.0)
-    variable = tf.Variable(initializer(shape=shape), name=name)
-    return variable
+    with tf.device("/cpu:0"):
+        initializer = tf.constant_initializer(0.)
+        variable = tf.get_variable(initializer=initializer(shape=shape), name=name)
+        return variable
 
 
 def compute_waveglow_loss(z, log_s_list, log_det_W_list, sigma=1.0):
@@ -36,9 +33,9 @@ def compute_waveglow_loss(z, log_s_list, log_det_W_list, sigma=1.0):
             log_s_total = log_s_total + tf.reduce_sum(log_s)
             log_det_W_total += log_det_W_list[i]
 
-    loss = tf.reduce_sum(z * z) / (2 * sigma * sigma) - log_s_total - log_s_total
+    loss = tf.reduce_sum(z * z) / (2 * sigma * sigma) - log_s_total - log_det_W_total
     shape = tf.shape(z)
-    loss = loss / (shape[0] * shape[1] * shape[2])
+    loss = loss / tf.cast(shape[0] * shape[1] * shape[2], 'float32')
     return loss
 
 
@@ -48,12 +45,12 @@ def invertible1x1Conv(z, n_channels, forward=True, name='inv1x1conv'):
         batch_size, length, channels = shape[0], shape[1], shape[2]
 
         # sample a random orthogonal matrix to initialize weight
-        W_init = np.linalg.qr(np.random.randn(n_channels, n_channels))
-        W = tf.get_variable('W', initializer=W_init)
+        W_init = np.linalg.qr(np.random.randn(n_channels, n_channels))[0].astype('float32')
+        W = tf.get_variable('W', initializer=W_init, dtype=tf.float32)
 
         # compute log determinant
-        logdet = batch_size * length * tf.log(tf.abs(tf.matrix_determinant(W)))
-
+        det = tf.log(tf.abs(tf.matrix_determinant(W)))
+        logdet = det * tf.cast(batch_size * length, 'float32')
         if forward:
             _W = tf.reshape(W, [1, n_channels, n_channels])
             z = tf.nn.conv1d(z, _W, stride=1, padding='SAME')
@@ -113,8 +110,8 @@ class WaveNet(object):
                                                       strides=[1, 1, 1, 1],
                                                       padding='SAME',
                                                       dilations=[1, 1, dilation, 1],
-                                                      name='dilated_conv')
-                                         + b_g_f)
+                                                      name='dilated_conv'),
+                                         b_g_f)
 
             # convert back to B*T*d data
             audio_batch = tf.reshape(audio_batch, [shape[0], shape[1], -1])
@@ -160,6 +157,7 @@ class WaveGlow(object):
         :return:
         '''
         with tf.variable_scope(name):
+            # TODO: make local condition interleveled in each dimension
             batch, length = tf.shape(audio_batch)[0], tf.shape(audio_batch)[1]
 
             # sequeeze
@@ -170,8 +168,8 @@ class WaveGlow(object):
             log_s_list = []
             log_det_W_list = []
 
-            for k in range(1, self.n_flows + 1):
-                if k % self.n_early_every == 0 and k != self.n_flows:
+            for k in range(0, self.n_flows):
+                if k % self.n_early_every == 0 and k > 0:
                     output_audio.append(audio_batch[:, :, :self.n_early_size])
                     audio_batch = audio_batch[:, :, self.n_early_size:]
                     self.n_remaining_channels -= self.n_early_size  # update remaining channels
@@ -182,7 +180,7 @@ class WaveGlow(object):
                     log_det_W_list.append(log_det_w)
 
                     # affine coupling layer
-                    n_half = self.n_remaining_channels / 2
+                    n_half = int(self.n_remaining_channels / 2)
                     audio_0, audio_1 = audio_batch[:, :, :n_half], audio_batch[:, :, n_half:]
 
                     wavenet = WaveNet(n_half, self.lc_dim * self.n_group, hparams.n_layers,
@@ -200,8 +198,8 @@ class WaveGlow(object):
         with tf.variable_scope(name):
             # compute the remaining channels
             remaining_channels = self.n_group
-            for k in range(1, self.n_flows + 1):
-                if k % self.n_early_every == 0 and k != self.n_flows:
+            for k in range(0, self.n_flows):
+                if k % self.n_early_every == 0 and k > 0:
                     remaining_channels = remaining_channels - self.n_early_size
 
             batch = tf.shape(lc_batch)[0]
@@ -215,10 +213,10 @@ class WaveGlow(object):
             audio_batch = audio_batch * sigma
 
             # backward inference
-            for k in reversed(range(1, self.n_group + 1)):
+            for k in reversed(range(0, self.n_group)):
                 with tf.variable_scope('glow_%d' % (k,)):
                     # affine coupling layer
-                    n_half = remaining_channels / 2
+                    n_half = int(remaining_channels / 2)
                     audio_0, audio_1 = audio_batch[:, :, :n_half], audio_batch[:, :, n_half:]
                     wavenet = WaveNet(n_half, self.lc_dim * self.n_group, hparams.n_layers,
                                       hparams.residual_channels, hparams.skip_channels)
@@ -230,7 +228,7 @@ class WaveGlow(object):
                     audio_batch = invertible1x1Conv(audio_batch, self.n_remaining_channels, forward=False)
 
                 # early output
-                if k % self.n_early_every == 0 and k != self.n_flows:
+                if k % self.n_early_every == 0 and k > 0:
                     z = tf.random_normal([shape[0], shape[1], self.n_early_size])
                     z = z * sigma
                     remaining_channels += self.n_early_size

@@ -98,13 +98,12 @@ def main():
     # Create coordinator.
     coord = tf.train.Coordinator()
     global_step = tf.get_variable("global_step", [], initializer=tf.constant_initializer(0), trainable=False)
-    learning_rate = tf.train.exponential_decay(args.learning_rate, global_step, hparams.decay_steps, 0.96, staircase=True)
+    learning_rate = tf.train.exponential_decay(hparams.lr, global_step, hparams.decay_steps, 0.96, staircase=True)
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
 
     with tf.device('/cpu:0'):
-        # Load raw waveform from VCTK corpus.
         with tf.name_scope('inputs'):
-            reader = DataReader(coord, args.filelist, args.wave_dir, args.mel_dir)
+            reader = DataReader(coord, args.filelist, args.wave_dir, args.lc_dir)
 
     sess = tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=True))
     reader.start_threads()
@@ -156,7 +155,8 @@ def main():
 
     last_saved_step = saved_global_step
     try:
-        for step in range(saved_global_step + 1, args.num_steps):
+        for step in range(saved_global_step + 1, hparams.train_steps):
+            audio, lc = reader.dequeue(num_elements=hparams.batch_size)
             start_time = time.time()
             if step % 50 == 0 and args.store_metadata:
                 # Slow run that stores extra information for debugging.
@@ -165,6 +165,7 @@ def main():
                     trace_level=tf.RunOptions.FULL_TRACE)
                 summary, loss_value, _, lr = sess.run(
                     [summaries, loss, train_ops, learning_rate],
+                    feed_dict={audio_placeholder: audio, lc_placeholder: lc},
                     options=run_options,
                     run_metadata=run_metadata)
                 writer.add_summary(summary, step)
@@ -175,7 +176,8 @@ def main():
                 with open(timeline_path, 'w') as f:
                     f.write(tl.generate_chrome_trace_format(show_memory=True))
             else:
-                summary, loss_value, _, lr = sess.run([summaries, loss, train_ops, learning_rate])
+                summary, loss_value, _, lr = sess.run([summaries, loss, train_ops, learning_rate],
+                                                      feed_dict={audio_placeholder: audio, lc_placeholder: lc})
                 writer.add_summary(summary, step)
 
             duration = time.time() - start_time

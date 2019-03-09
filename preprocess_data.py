@@ -43,8 +43,8 @@ def extract_mfcc(wave_file, save_path, sr, n_mfcc):
 def gen_filelist(filelist, save_dir):
     random.shuffle(filelist)
     # random select 200 ids as test
-    test_set = filelist[-200:]
-    train_set = filelist[:200]
+    test_set = filelist[:200]
+    train_set = filelist[200:]
 
     train_set.sort()
     test_set.sort()

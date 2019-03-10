@@ -209,7 +209,7 @@ class WaveGlow(object):
             lc_batch = tf.reshape(lc_batch, [batch, -1, self.lc_dim * self.n_group])
 
             shape = tf.shape(lc_batch)
-            audio_batch = tf.random_normal([shape[0], shape[1], remaining_channels])
+            audio_batch = tf.random_normal([shape[0], tf.shape(lc_batch)[1], remaining_channels])
             audio_batch = audio_batch * sigma
 
             # backward inference
@@ -229,7 +229,7 @@ class WaveGlow(object):
 
                 # early output
                 if k % self.n_early_every == 0 and k > 0:
-                    z = tf.random_normal([shape[0], shape[1], self.n_early_size])
+                    z = tf.random_normal([shape[0], tf.shape(lc_batch)[1], self.n_early_size])
                     z = z * sigma
                     remaining_channels += self.n_early_size
 

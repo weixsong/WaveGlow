@@ -213,7 +213,7 @@ class WaveGlow(object):
             audio_batch = audio_batch * sigma
 
             # backward inference
-            for k in reversed(range(0, self.n_group)):
+            for k in reversed(range(0, self.n_flows)):
                 with tf.variable_scope('glow_%d' % (k,)):
                     # affine coupling layer
                     n_half = int(remaining_channels / 2)

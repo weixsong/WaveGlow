@@ -43,30 +43,34 @@ def write_wav(waveform, sample_rate, filename):
 
 
 def main():
-    args = get_arguments()
-    args.logdir = os.path.join(hparams.logdir_root, args.run_name)
-    if not os.path.exists(args.logdir):
-        os.makedirs(args.logdir)
+    try:
+        args = get_arguments()
 
-    lc = read_binary_lc(args.lc, hparams.num_mels)
-    # upsampling local condition
-    lc = np.tile(lc, [1, 1, hparams.upsampling_rate])
-    lc = np.reshape(lc, [hparams.batch_size, -1, hparams.num_mels])
+        lc = read_binary_lc(args.lc, hparams.num_mels)
+        # upsampling local condition
+        lc = np.tile(lc, [1, 1, hparams.upsampling_rate])
+        lc = np.reshape(lc, [hparams.batch_size, -1, hparams.num_mels])
 
-    glow = WaveGlow(lc_dim=hparams.num_mels,
-                    n_flows=hparams.n_flows,
-                    n_group=hparams.n_group,
-                    n_early_every=hparams.n_early_every,
-                    n_early_size=hparams.n_early_size)
+        glow = WaveGlow(lc_dim=hparams.num_mels,
+                        n_flows=hparams.n_flows,
+                        n_group=hparams.n_group,
+                        n_early_every=hparams.n_early_every,
+                        n_early_size=hparams.n_early_size)
 
-    lc_placeholder = tf.placeholder(tf.float32, shape=[None, None, hparams.num_mels], name='lc')
-    audio = glow.infer(lc_placeholder)
+        lc_placeholder = tf.placeholder(tf.float32, shape=[None, None, hparams.num_mels], name='lc')
+        audio = glow.infer(lc_placeholder)
 
-    sess = tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=True))
-    print("restore model")
-    saver = tf.train.Saver(var_list=tf.trainable_variables())
-    saver.restore(sess, args.restore_from)
-    print('restore model successfully!')
+        sess = tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=True))
+        print("restore model")
+        saver = tf.train.Saver(var_list=tf.trainable_variables())
+        saver.restore(sess, args.restore_from)
+        print('restore model successfully!')
 
-    audio_output = sess.run(audio, feed_dict={lc_placeholder: lc})
-    write_wav(audio_output, hparams.sample_rate, args.wave_name)
+        audio_output = sess.run(audio, feed_dict={lc_placeholder: lc})
+        write_wav(audio_output, hparams.sample_rate, args.wave_name)
+    except Exception:
+        raise
+
+
+if __name__ == '__main__':
+    main()

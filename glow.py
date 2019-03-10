@@ -225,7 +225,7 @@ class WaveGlow(object):
                     audio_batch = tf.concat([audio_0, audio_1], axis=-1)
 
                     # inverse 1X1 conv
-                    audio_batch = invertible1x1Conv(audio_batch, self.n_remaining_channels, forward=False)
+                    audio_batch = invertible1x1Conv(audio_batch, remaining_channels, forward=False)
 
                 # early output
                 if k % self.n_early_every == 0 and k > 0:

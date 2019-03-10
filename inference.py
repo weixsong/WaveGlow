@@ -49,7 +49,8 @@ def main():
         lc = read_binary_lc(args.lc, hparams.num_mels)
         # upsampling local condition
         lc = np.tile(lc, [1, 1, hparams.upsampling_rate])
-        lc = np.reshape(lc, [hparams.batch_size, -1, hparams.num_mels])
+        lc = np.reshape(lc, [1, -1, hparams.num_mels])
+        print(lc.shape)
 
         glow = WaveGlow(lc_dim=hparams.num_mels,
                         n_flows=hparams.n_flows,
@@ -57,7 +58,7 @@ def main():
                         n_early_every=hparams.n_early_every,
                         n_early_size=hparams.n_early_size)
 
-        lc_placeholder = tf.placeholder(tf.float32, shape=[None, None, hparams.num_mels], name='lc')
+        lc_placeholder = tf.placeholder(tf.float32, shape=[1, None, hparams.num_mels], name='lc')
         audio = glow.infer(lc_placeholder)
 
         sess = tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=True))
@@ -67,6 +68,7 @@ def main():
         print('restore model successfully!')
 
         audio_output = sess.run(audio, feed_dict={lc_placeholder: lc})
+        print(audio_output)
         write_wav(audio_output, hparams.sample_rate, args.wave_name)
     except Exception:
         raise

@@ -204,7 +204,7 @@ class WaveGlow(object):
 
             batch = tf.shape(lc_batch)[0]
             # need to make sure that length of lc_batch be multiple times of n_group
-            pad = tf.shape(lc_batch)[1] + self.n_group - tf.shape(lc_batch)[1] % self.n_group
+            pad = self.n_group - 1 - (tf.shape(lc_batch)[1] + self.n_group - 1) % self.n_group
             lc_batch = tf.pad(lc_batch, [[0, 0], [0, pad], [0, 0]])
             lc_batch = tf.reshape(lc_batch, [batch, -1, self.lc_dim * self.n_group])
 

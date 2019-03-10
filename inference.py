@@ -68,6 +68,7 @@ def main():
         print('restore model successfully!')
 
         audio_output = sess.run(audio, feed_dict={lc_placeholder: lc})
+        audio_output = audio_output.flatten()
         print(audio_output)
         write_wav(audio_output, hparams.sample_rate, args.wave_name)
     except Exception:

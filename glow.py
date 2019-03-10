@@ -221,7 +221,7 @@ class WaveGlow(object):
                     wavenet = WaveNet(n_half, self.lc_dim * self.n_group, hparams.n_layers,
                                       hparams.residual_channels, hparams.skip_channels)
                     log_s, shift = wavenet.create_network(audio_0, lc_batch)
-                    audio_1 = audio_1 * tf.exp(log_s) + shift
+                    audio_1 = (audio_1 - shift) / tf.exp(log_s)
                     audio_batch = tf.concat([audio_0, audio_1], axis=-1)
 
                     # inverse 1X1 conv

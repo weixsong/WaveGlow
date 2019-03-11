@@ -21,7 +21,7 @@ hparams = tf.contrib.training.HParams(
 
     # network
     sample_size=16000,
-    batch_size=2,
+    batch_size=4,
     upsampling_rate=256,  # same as hop_length
     n_flows=12,
     n_group=8,
@@ -30,7 +30,7 @@ hparams = tf.contrib.training.HParams(
 
     # wavenet
     n_layers=8,
-    residual_channels=512,
-    skip_channels=512,
+    residual_channels=256,
+    skip_channels=256,
     kernel_size=3,
 )

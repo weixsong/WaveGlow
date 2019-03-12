@@ -22,7 +22,7 @@ def get_arguments():
     parser.add_argument('--wave_name', type=str, default='waveglow.wav')
     parser.add_argument('--restore_from', type=str, default=None,
                         help='restore model from checkpoint')
-    parser.add_argument('--sigma', type=float, default=1.0,
+    parser.add_argument('--sigma', type=float, default=0.6,
                         help='sigma value for inference')
     return parser.parse_args()
 
@@ -59,7 +59,7 @@ def main():
                         n_early_size=hparams.n_early_size)
 
         lc_placeholder = tf.placeholder(tf.float32, shape=[1, None, hparams.num_mels], name='lc')
-        audio = glow.infer(lc_placeholder)
+        audio = glow.infer(lc_placeholder, sigma=args.sigma)
 
         sess = tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=True))
         print("restore model")

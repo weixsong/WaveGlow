@@ -18,6 +18,7 @@ hparams = tf.contrib.training.HParams(
     save_model_every=4000,
     logdir_root='./logdir',
     decay_steps=100000,
+    sigma=0.707,
 
     # network
     sample_size=16000,

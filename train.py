@@ -174,7 +174,7 @@ def main():
                 local_lc_placeholder = lc_placeholder[i*hparams.batch_size:(i+1)*hparams.batch_size, :, :]
                 output_audio, log_s_list, log_det_W_list = glow.create_forward_network(local_audio_placeholder,
                                                                                        local_lc_placeholder)
-                loss = compute_waveglow_loss(output_audio, log_s_list, log_det_W_list)
+                loss = compute_waveglow_loss(output_audio, log_s_list, log_det_W_list, sigma=hparams.sigma)
                 grads = optimizer.compute_gradients(loss, var_list=tf.trainable_variables())
                 tower_losses.append(loss)
                 tower_grads.append(grads)
@@ -185,13 +185,15 @@ def main():
     loss = tf.reduce_mean(tower_losses)
     averaged_gradients = average_gradients(tower_grads)
 
-    # gradient clipping
-    gradients = [grad for grad, var in averaged_gradients]
-    params = [var for grad, var in averaged_gradients]
-    clipped_gradients, norm = tf.clip_by_global_norm(gradients, 1.0)
+    # # gradient clipping
+    # gradients = [grad for grad, var in averaged_gradients]
+    # params = [var for grad, var in averaged_gradients]
+    # clipped_gradients, norm = tf.clip_by_global_norm(gradients, 1.0)
+    #
+    # with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
+    #     train_ops = optimizer.apply_gradients(zip(clipped_gradients, params), global_step=global_step)
 
-    with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
-        train_ops = optimizer.apply_gradients(zip(clipped_gradients, params), global_step=global_step)
+    train_ops = optimizer.apply_gradients(averaged_gradients, global_step=global_step)
 
     tf.summary.scalar('loss', loss)
 

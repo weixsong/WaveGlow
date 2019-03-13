@@ -49,15 +49,15 @@ def invertible1x1Conv(z, n_channels, forward=True, name='inv1x1conv'):
         W = tf.get_variable('W', initializer=W_init, dtype=tf.float32)
 
         # compute log determinant
-        logdet = tf.log(tf.abs(tf.linalg.det(W)))
-        logdet = logdet * tf.cast(batch_size * length, 'float32')
-
-        W = tf.reshape(W, [1, n_channels, n_channels])
+        det = tf.log(tf.abs(tf.matrix_determinant(W)))
+        logdet = det * tf.cast(batch_size * length, 'float32')
         if forward:
-            z = tf.nn.conv1d(z, W, stride=1, padding='SAME')
+            _W = tf.reshape(W, [1, n_channels, n_channels])
+            z = tf.nn.conv1d(z, _W, stride=1, padding='SAME')
             return z, logdet
         else:
             _W = tf.matrix_inverse(W)
+            _W = tf.reshape(_W, [1, n_channels, n_channels])
             z = tf.nn.conv1d(z, _W, stride=1, padding='SAME')
             return z
 
@@ -114,7 +114,7 @@ class WaveNet(object):
                                          b_g_f)
 
             # convert back to B*T*d data
-            audio_batch = tf.squeeze(audio_batch)
+            audio_batch = tf.reshape(audio_batch, [shape[0], shape[1], -1])
 
             # process local condition
             w_lc = create_variable('w_lc', [1, self.n_lc_dim, 2 * self.residual_channels])
@@ -238,4 +238,3 @@ class WaveGlow(object):
             # reshape audio back to B*T*1
             audio_batch = tf.reshape(audio_batch, [shape[0], -1, 1])
             return audio_batch
-

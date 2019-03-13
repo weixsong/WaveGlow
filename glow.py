@@ -48,14 +48,11 @@ def invertible1x1Conv(z, n_channels, forward=True, name='inv1x1conv'):
         W_init = np.linalg.qr(np.random.randn(n_channels, n_channels))[0].astype('float32')
         W = tf.get_variable('W', initializer=W_init, dtype=tf.float32)
 
-        if tf.linalg.det(W) < 0:
-            W[:, 0] = -1.0 * W[:, 0]
+        # compute log determinant
+        logdet = tf.log(tf.abs(tf.linalg.det(W)))
+        logdet = logdet * tf.cast(batch_size * length, 'float32')
 
         W = tf.reshape(W, [1, n_channels, n_channels])
-
-        # compute log determinant
-        logdet = tf.log(tf.linalg.det(W))
-        logdet = logdet * tf.cast(batch_size * length, 'float32')
         if forward:
             z = tf.nn.conv1d(z, W, stride=1, padding='SAME')
             return z, logdet

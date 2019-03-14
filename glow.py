@@ -33,6 +33,9 @@ def compute_waveglow_loss(z, log_s_list, log_det_W_list, sigma=1.0):
             log_s_total = log_s_total + tf.reduce_sum(log_s)
             log_det_W_total += log_det_W_list[i]
 
+        tf.summary.scalar('logdet_%d' % i, log_det_W_list[i])
+        tf.summary.scalar('log_s_%d' % i, tf.reduce_sum(log_s))
+
     loss = tf.reduce_sum(z * z) / (2 * sigma * sigma) - log_s_total - log_det_W_total
     shape = tf.shape(z)
     loss = loss / tf.cast(shape[0] * shape[1] * shape[2], 'float32')
@@ -78,6 +81,9 @@ class WaveNet(object):
             # channel convert
             w_s = create_variable('w_s', [1, self.n_in_channels, self.residual_channels])
             b_s = create_bias_variable('b_s', [self.residual_channels])
+            g_s = create_variable('g_s', [self.residual_channels])
+            # weight norm
+            w_s = g_s * tf.nn.l2_normalize(w_s, axis=[0, 1])
             audio_batch = tf.nn.bias_add(tf.nn.conv1d(audio_batch, w_s, 1, 'SAME'), b_s)
 
             skip_outputs = []
@@ -98,15 +104,17 @@ class WaveNet(object):
         input = audio_batch
         with tf.variable_scope('dilation_%d' % (dilation,)):
             # compute gate & filter
-            w_g_f = create_variable('w_g_f', [self.kernel_size, self.residual_channels, 2 * self.residual_channels])
+            w_g_f = create_variable('w_g_f', [1, self.kernel_size, self.residual_channels, 2 * self.residual_channels])
             b_g_f = create_bias_variable('b_g_f', [2 * self.residual_channels])
+            g_g_f = create_variable('g_g_f', [2 * self.residual_channels])
+
+            # weight norm
+            w_g_f = g_g_f * tf.nn.l2_normalize(w_g_f, [0, 1, 2])
 
             # convert conv1d to conv2d to leverage dilated conv
-            shape = tf.shape(audio_batch)
-            _w_g_f = tf.reshape(w_g_f, [1, self.kernel_size, self.residual_channels, 2 * self.residual_channels])
-            audio_batch = tf.reshape(audio_batch, [shape[0], 1, shape[1], shape[2]])
+            audio_batch = tf.expand_dims(audio_batch, axis=1)  # B*1*T*d
             audio_batch = tf.nn.bias_add(tf.nn.conv2d(audio_batch,
-                                                      _w_g_f,
+                                                      w_g_f,
                                                       strides=[1, 1, 1, 1],
                                                       padding='SAME',
                                                       dilations=[1, 1, dilation, 1],
@@ -114,11 +122,15 @@ class WaveNet(object):
                                          b_g_f)
 
             # convert back to B*T*d data
-            audio_batch = tf.reshape(audio_batch, [shape[0], shape[1], -1])
+            audio_batch = tf.squeeze(audio_batch)
 
             # process local condition
             w_lc = create_variable('w_lc', [1, self.n_lc_dim, 2 * self.residual_channels])
             b_lc = create_bias_variable('b_lc', [2 * self.residual_channels])
+            g_lc = create_variable('g_lc', [2 * self.residual_channels])
+            # weight norm
+            w_lc = g_lc * tf.nn.l2_normalize(w_lc, [0, 1])
+
             lc_batch = tf.nn.bias_add(tf.nn.conv1d(lc_batch, w_lc, 1, 'SAME'), b_lc)
 
             # gated conv
@@ -130,11 +142,18 @@ class WaveNet(object):
             # skip
             w_skip = create_variable('w_skip', [1, self.residual_channels, self.skip_channels])
             b_skip = create_bias_variable('b_skip', [self.skip_channels])
+            g_skip = create_variable('g_skip', [self.skip_channels])
+            # weight norm
+            w_skip = g_skip * tf.nn.l2_normalize(w_skip, [0, 1])
             skip_output = tf.nn.bias_add(tf.nn.conv1d(acts, w_skip, 1, 'SAME'), b_skip)
 
             # residual conv1d
             w_res = create_variable('w_res', [1, self.residual_channels, self.residual_channels])
             b_res = create_bias_variable('b_res', [self.residual_channels])
+            # weight norm
+            g_res = create_variable('g_res', [self.residual_channels])
+            w_res = g_res * tf.nn.l2_normalize(w_res)
+
             res_output = tf.nn.bias_add(tf.nn.conv1d(acts, w_res, 1, 'SAME'), b_res)
 
             return res_output + input, skip_output

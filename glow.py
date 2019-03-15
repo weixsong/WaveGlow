@@ -38,7 +38,13 @@ def compute_waveglow_loss(z, log_s_list, log_det_W_list, sigma=1.0):
 
     loss = tf.reduce_sum(z * z) / (2 * sigma * sigma) - log_s_total - log_det_W_total
     shape = tf.shape(z)
-    loss = loss / tf.cast(shape[0] * shape[1] * shape[2], 'float32')
+    total_size = tf.cast(shape[0] * shape[1] * shape[2], 'float32')
+    loss = loss / total_size
+
+    tf.summary.scalar('mean_log_det', -log_det_W_total / total_size)
+    tf.summary.scalar('mean_log_scale', -log_s_total / total_size)
+    tf.summary.scalar('prior_loss', tf.reduce_sum(z * z / (2 * sigma * sigma)) / total_size)
+    tf.summary.scalar('total_loss', loss)
     return loss
 
 

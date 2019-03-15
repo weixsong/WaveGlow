@@ -58,7 +58,7 @@ def invertible1x1Conv(z, n_channels, forward=True, name='inv1x1conv'):
         W = tf.get_variable('W', initializer=W_init, dtype=tf.float32)
 
         # compute log determinant
-        det = tf.log(tf.abs(tf.matrix_determinant(W)))
+        det = tf.log(tf.abs(tf.cast(tf.matrix_determinant(tf.cast(W, tf.float64)), tf.float32)))
         logdet = det * tf.cast(batch_size * length, 'float32')
         if forward:
             _W = tf.reshape(W, [1, n_channels, n_channels])
@@ -211,7 +211,7 @@ class WaveGlow(object):
                     wavenet = WaveNet(n_half, self.lc_dim * self.n_group, hparams.n_layers,
                                       hparams.residual_channels, hparams.skip_channels)
                     log_s, shift = wavenet.create_network(audio_0, lc_batch)
-                    audio_1 = audio_1 * tf.exp(log_s) + shift
+                    audio_1 = audio_1 * tf.nn.softplus(log_s) + shift
                     audio_batch = tf.concat([audio_0, audio_1], axis=-1)
 
                     log_s_list.append(log_s)

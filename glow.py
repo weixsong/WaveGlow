@@ -23,6 +23,45 @@ def create_variable_zeros(name, shape):
         return variable
 
 
+def time_to_batch(value, dilation, name=None):
+    with tf.name_scope('time_to_batch'):
+        shape = tf.shape(value)
+        pad_elements = dilation - 1 - (shape[1] + dilation - 1) % dilation
+        padded = tf.pad(value, [[0, 0], [0, pad_elements], [0, 0]])
+        reshaped = tf.reshape(padded, [-1, dilation, shape[2]])
+        transposed = tf.transpose(reshaped, perm=[1, 0, 2])
+        return tf.reshape(transposed, [shape[0] * dilation, -1, shape[2]])
+
+
+def batch_to_time(value, dilation, name=None):
+    with tf.name_scope('batch_to_time'):
+        shape = tf.shape(value)
+        prepared = tf.reshape(value, [dilation, -1, shape[2]])
+        transposed = tf.transpose(prepared, perm=[1, 0, 2])
+        return tf.reshape(transposed,
+                          [tf.div(shape[0], dilation), -1, shape[2]])
+
+
+def causal_conv(value, filter_, dilation, name='causal_conv'):
+    with tf.name_scope(name):
+        # Pad beforehand to preserve causality.
+        filter_width = tf.shape(filter_)[0]
+        pad = int((filter_width - 1) * dilation) / 2
+        padding = [[0, 0], [pad, pad], [0, 0]]
+        padded = tf.pad(value, padding)
+        if dilation > 1:
+            transformed = time_to_batch(padded, dilation)
+            conv = tf.nn.conv1d(transformed, filter_, stride=1, padding='VALID')
+            restored = batch_to_time(conv, dilation)
+        else:
+            restored = tf.nn.conv1d(padded, filter_, stride=1, padding='VALID')
+        # Remove excess elements at the end.
+        result = tf.slice(restored,
+                          [0, 0, 0],
+                          [-1, tf.shape(value)[1], -1])
+        return result
+
+
 def compute_waveglow_loss(z, log_s_list, log_det_W_list, sigma=1.0):
     '''negative log-likelihood of the data x'''
     for i, log_s in enumerate(log_s_list):
@@ -110,28 +149,15 @@ class WaveNet(object):
         input = audio_batch
         with tf.variable_scope('dilation_%d' % (dilation,)):
             # compute gate & filter
-            w_g_f = create_variable('w_g_f', [1, self.kernel_size, self.residual_channels, 2 * self.residual_channels])
+            w_g_f = create_variable('w_g_f', [self.kernel_size, self.residual_channels, 2 * self.residual_channels])
             b_g_f = create_bias_variable('b_g_f', [2 * self.residual_channels])
             g_g_f = create_variable('g_g_f', [2 * self.residual_channels])
 
             # weight norm
-            w_g_f = g_g_f * tf.nn.l2_normalize(w_g_f, [0, 1, 2])
+            w_g_f = g_g_f * tf.nn.l2_normalize(w_g_f, [0, 1])
 
-            audio_batch = tf.expand_dims(audio_batch, axis=1)  # B*1*T*c
-            audio_batch = tf.Print(audio_batch, [tf.shape(audio_batch)], first_n=10, message='before conv2d')
-
-            # audio padding
-            # pad = int((self.kernel_size * dilation - dilation) / 2)
-            audio_batch = tf.nn.conv2d(audio_batch,
-                                       w_g_f,
-                                       strides=[1, 1, 1, 1],
-                                       padding='SAME',
-                                       dilations=[1, 1, dilation, 1])
-            audio_batch = tf.nn.bias_add(audio_batch, b_g_f)
-            audio_batch = tf.Print(audio_batch, [tf.shape(audio_batch)], first_n=10, message='after conv2d')
-
-            # convert back to B*T*d data
-            audio_batch = tf.squeeze(audio_batch, axis=1)
+            # dilated conv1d
+            audio_batch = causal_conv(audio_batch, w_g_f, dilation)
 
             # process local condition
             w_lc = create_variable('w_lc', [1, self.n_lc_dim, 2 * self.residual_channels])

@@ -42,11 +42,10 @@ def batch_to_time(value, dilation, name=None):
                           [tf.div(shape[0], dilation), -1, shape[2]])
 
 
-def causal_conv(value, filter_, dilation, name='causal_conv'):
+def causal_conv(value, filter_, dilation, filter_width=3, name='causal_conv'):
     with tf.name_scope(name):
         # Pad beforehand to preserve causality.
-        filter_width = tf.shape(filter_)[0]
-        pad = int((filter_width - 1) * dilation) / 2
+        pad = int((filter_width - 1) * dilation / 2)
         padding = [[0, 0], [pad, pad], [0, 0]]
         padded = tf.pad(value, padding)
         if dilation > 1:
@@ -157,7 +156,7 @@ class WaveNet(object):
             w_g_f = g_g_f * tf.nn.l2_normalize(w_g_f, [0, 1])
 
             # dilated conv1d
-            audio_batch = causal_conv(audio_batch, w_g_f, dilation)
+            audio_batch = causal_conv(audio_batch, w_g_f, dilation, self.kernel_size)
 
             # process local condition
             w_lc = create_variable('w_lc', [1, self.n_lc_dim, 2 * self.residual_channels])

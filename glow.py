@@ -117,15 +117,16 @@ class WaveNet(object):
             # weight norm
             w_g_f = g_g_f * tf.nn.l2_normalize(w_g_f, [0, 1, 2])
 
-            # convert conv1d to conv2d to leverage dilated conv
-            audio_batch = tf.expand_dims(audio_batch, axis=1)  # B*1*T*d
-            audio_batch = tf.nn.bias_add(tf.nn.conv2d(audio_batch,
-                                                      w_g_f,
-                                                      strides=[1, 1, 1, 1],
-                                                      padding='SAME',
-                                                      dilations=[1, 1, dilation, 1],
-                                                      name='dilated_conv'),
-                                         b_g_f)
+            # audio padding
+            pad = int((self.kernel_size * dilation - dilation) / 2)
+            audio_batch = tf.pad(audio_batch, [[0, 0], [pad, pad], [0, 0]])
+
+            audio_batch = tf.expand_dims(audio_batch, axis=1)  # B*1*T*c
+            audio_batch = tf.nn.atrous_conv2d(audio_batch,
+                                              w_g_f,
+                                              rate=dilation,
+                                              padding='VALID')
+            audio_batch = tf.nn.bias_add(audio_batch, b_g_f)
 
             # convert back to B*T*d data
             audio_batch = tf.squeeze(audio_batch)

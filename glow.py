@@ -117,18 +117,16 @@ class WaveNet(object):
             # weight norm
             w_g_f = g_g_f * tf.nn.l2_normalize(w_g_f, [0, 1, 2])
 
-            # convert conv1d to conv2d to leverage dilated conv
-            audio_batch = tf.expand_dims(audio_batch, axis=1)  # B*1*T*d
-            audio_batch = tf.nn.bias_add(tf.nn.conv2d(audio_batch,
-                                                      w_g_f,
-                                                      strides=[1, 1, 1, 1],
-                                                      padding='SAME',
-                                                      dilations=[1, 1, dilation, 1],
-                                                      name='dilated_conv'),
-                                         b_g_f)
+            audio_batch = tf.expand_dims(audio_batch, axis=1)  # B*1*T*c
+            audio_batch = tf.nn.conv2d(audio_batch,
+                                       w_g_f,
+                                       strides=[1, 1, 1, 1],
+                                       padding='SAME',
+                                       dilations=[1, 1, dilation, 1])
+            audio_batch = tf.nn.bias_add(audio_batch, b_g_f)
 
             # convert back to B*T*d data
-            audio_batch = tf.squeeze(audio_batch)
+            audio_batch = tf.squeeze(audio_batch, axis=1)
 
             # process local condition
             w_lc = create_variable('w_lc', [1, self.n_lc_dim, 2 * self.residual_channels])
@@ -211,7 +209,7 @@ class WaveGlow(object):
                     wavenet = WaveNet(n_half, self.lc_dim * self.n_group, hparams.n_layers,
                                       hparams.residual_channels, hparams.skip_channels)
                     log_s, shift = wavenet.create_network(audio_0, lc_batch)
-                    audio_1 = audio_1 * tf.nn.softplus(log_s) + shift
+                    audio_1 = audio_1 * tf.exp(log_s) + shift
                     audio_batch = tf.concat([audio_0, audio_1], axis=-1)
 
                     log_s_list.append(log_s)

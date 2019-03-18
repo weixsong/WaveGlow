@@ -16,4 +16,6 @@ python train.py --filelist=xxx --wave_dir=xxx --lc_dir=xxx
 model parameters are in file params.py
 
 # Issues
+* tf.nn.conv2d() for dilated convolution did not convergence as expected in my experiments, so I changed the dilated convolution to implementation from [tensorflow-wavenet](https://github.com/ibab/tensorflow-wavenet).
+* Need to verify what's wrong in my usage of tf.nn.conv2d()
 * **tf.nn.conv2d()** for dilated convolution is not supported on tensorflow CPU implementation, so not easy to debug on CPU machine.

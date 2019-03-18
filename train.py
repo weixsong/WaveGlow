@@ -145,7 +145,7 @@ def main():
     # Create coordinator.
     coord = tf.train.Coordinator()
     global_step = tf.get_variable("global_step", [], initializer=tf.constant_initializer(0), trainable=False)
-    learning_rate = tf.train.exponential_decay(hparams.lr, global_step, hparams.decay_steps, 0.9, staircase=True)
+    learning_rate = tf.train.exponential_decay(hparams.lr, global_step, hparams.decay_steps, 0.95, staircase=True)
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
 
     with tf.device('/cpu:0'):

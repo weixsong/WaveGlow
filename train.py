@@ -158,15 +158,30 @@ def main():
     audio_placeholder = tf.placeholder(tf.float32, shape=[None, None, 1], name='audio')
     lc_placeholder = tf.placeholder(tf.float32, shape=[None, None, hparams.num_mels], name='lc')
 
-    glow = WaveGlow(lc_dim=hparams.num_mels,
-                    n_flows=hparams.n_flows,
-                    n_group=hparams.n_group,
-                    n_early_every=hparams.n_early_every,
-                    n_early_size=hparams.n_early_size)
-    output_audio, log_s_list, log_det_W_list = glow.create_forward_network(audio_placeholder,
-                                                                           lc_placeholder)
-    loss = compute_waveglow_loss(output_audio, log_s_list, log_det_W_list, sigma=hparams.sigma)
-    grads = optimizer.compute_gradients(loss, var_list=tf.trainable_variables())
+    tower_losses = []
+    tower_grads = []
+    with tf.variable_scope(tf.get_variable_scope(), reuse=tf.AUTO_REUSE):
+        for i in range(args.ngpu):
+            with tf.device('/gpu:%d' % i), tf.name_scope('tower_%d' % i):
+                glow = WaveGlow(lc_dim=hparams.num_mels,
+                                n_flows=hparams.n_flows,
+                                n_group=hparams.n_group,
+                                n_early_every=hparams.n_early_every,
+                                n_early_size=hparams.n_early_size)
+                print('create network %i' % i)
+
+                local_audio_placeholder = audio_placeholder[i * hparams.batch_size:(i + 1) * hparams.batch_size, :, :]
+                local_lc_placeholder = lc_placeholder[i * hparams.batch_size:(i + 1) * hparams.batch_size, :, :]
+
+                output_audio, log_s_list, log_det_W_list = glow.create_forward_network(local_audio_placeholder,
+                                                                                       local_lc_placeholder)
+                loss = compute_waveglow_loss(output_audio, log_s_list, log_det_W_list, sigma=hparams.sigma)
+                grads = optimizer.compute_gradients(loss, var_list=tf.trainable_variables())
+
+                tower_losses.append(loss)
+                tower_grads.append(grads)
+
+                tf.summary.scalar('loss_tower_%d' % i, loss)
 
     # # gradient clipping
     # gradients = [grad for grad, var in averaged_gradients]
@@ -176,7 +191,11 @@ def main():
     # with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     #     train_ops = optimizer.apply_gradients(zip(clipped_gradients, params), global_step=global_step)
 
-    train_ops = optimizer.apply_gradients(grads, global_step=global_step)
+    print("create network finished")
+    loss = tf.reduce_mean(tower_losses)
+    averaged_gradients = average_gradients(tower_grads)
+
+    train_ops = optimizer.apply_gradients(averaged_gradients, global_step=global_step)
 
     tf.summary.scalar('loss', loss)
 
@@ -213,10 +232,10 @@ def main():
     last_saved_step = saved_global_step
     try:
         for step in range(saved_global_step + 1, hparams.train_steps):
-            audio, lc = reader.dequeue(num_elements=hparams.batch_size*args.ngpu)
+            audio, lc = reader.dequeue(num_elements=hparams.batch_size * args.ngpu)
             # upsampling local condition
             lc = np.tile(lc, [1, 1, hparams.upsampling_rate])
-            lc = np.reshape(lc, [hparams.batch_size*args.ngpu, -1, hparams.num_mels])
+            lc = np.reshape(lc, [hparams.batch_size * args.ngpu, -1, hparams.num_mels])
 
             start_time = time.time()
             if step % 50 == 0 and args.store_metadata:

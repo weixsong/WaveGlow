@@ -10,6 +10,12 @@ def create_variable(name, shape):
         return variable
 
 
+def create_variable_init(name, initializer):
+    with tf.device("/cpu:0"):
+        variable = tf.get_variable(initializer=initializer, name=name, dtype=tf.float32)
+        return variable
+
+
 def create_bias_variable(name, shape):
     with tf.device("/cpu:0"):
         initializer = tf.constant_initializer(value=0.0, dtype=tf.float32)
@@ -93,7 +99,7 @@ def invertible1x1Conv(z, n_channels, forward=True, name='inv1x1conv'):
 
         # sample a random orthogonal matrix to initialize weight
         W_init = np.linalg.qr(np.random.randn(n_channels, n_channels))[0].astype('float32')
-        W = tf.get_variable('W', initializer=W_init, dtype=tf.float32)
+        W = create_variable_init('W', initializer=W_init)
 
         # compute log determinant
         det = tf.log(tf.abs(tf.cast(tf.matrix_determinant(tf.cast(W, tf.float64)), tf.float32)))

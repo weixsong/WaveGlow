@@ -13,11 +13,11 @@ hparams = tf.contrib.training.HParams(
     ref_level_db=20,
 
     # train
-    lr=0.0001,
+    lr=0.001,
     train_steps=1000000,
     save_model_every=4000,
     logdir_root='./logdir',
-    decay_steps=100000,
+    decay_steps=50000,
     sigma=0.707,
 
     # network

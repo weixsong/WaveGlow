@@ -32,8 +32,7 @@ def get_arguments():
                         help='wave data directory for training data.')
     parser.add_argument('--lc_dir', type=str, default=None, required=True,
                         help='local condition directory for training data.')
-    parser.add_argument('--ngpu', type=int, default=1,
-                        help='gpu numbers')
+    parser.add_argument('--ngpu', type=int, default=1, help='gpu numbers')
     parser.add_argument('--run_name', type=str, default='waveglow',
                         help='run name for log saving')
     parser.add_argument('--restore_from', type=str, default=None,
@@ -142,6 +141,8 @@ def main():
     if not os.path.exists(args.logdir):
         os.makedirs(args.logdir)
 
+    assert hparams.upsampling_rate == hparams.hop_length, 'upsamling rate should be same as hop_length'
+
     # Create coordinator.
     coord = tf.train.Coordinator()
     global_step = tf.get_variable("global_step", [], initializer=tf.constant_initializer(0), trainable=False)
@@ -163,8 +164,7 @@ def main():
                     n_group=hparams.n_group,
                     n_early_every=hparams.n_early_every,
                     n_early_size=hparams.n_early_size)
-    output_audio, log_s_list, log_det_W_list = glow.create_forward_network(audio_placeholder,
-                                                                           lc_placeholder)
+    output_audio, log_s_list, log_det_W_list = glow.create_forward_network(audio_placeholder, lc_placeholder)
     loss = compute_waveglow_loss(output_audio, log_s_list, log_det_W_list, sigma=hparams.sigma)
     grads = optimizer.compute_gradients(loss, var_list=tf.trainable_variables())
 

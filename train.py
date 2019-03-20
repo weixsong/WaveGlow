@@ -32,8 +32,7 @@ def get_arguments():
                         help='wave data directory for training data.')
     parser.add_argument('--lc_dir', type=str, default=None, required=True,
                         help='local condition directory for training data.')
-    parser.add_argument('--ngpu', type=int, default=1,
-                        help='gpu numbers')
+    parser.add_argument('--ngpu', type=int, default=1, help='gpu numbers')
     parser.add_argument('--run_name', type=str, default='waveglow',
                         help='run name for log saving')
     parser.add_argument('--restore_from', type=str, default=None,
@@ -141,6 +140,8 @@ def main():
     args.logdir = os.path.join(hparams.logdir_root, args.run_name)
     if not os.path.exists(args.logdir):
         os.makedirs(args.logdir)
+
+    assert hparams.upsampling_rate == hparams.hop_length, 'upsamling rate should be same as hop_length'
 
     # Create coordinator.
     coord = tf.train.Coordinator()

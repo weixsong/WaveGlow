@@ -140,7 +140,7 @@ class WaveNet(object):
                                        padding='SAME',
                                        dilations=[1, 1, dilation, 1],
                                        data_format='NCHW')
-            audio_batch = tf.nn.bias_add(audio_batch, b_g_f)
+            audio_batch = tf.nn.bias_add(audio_batch, b_g_f, data_format="NCHW")
 
             # convert back to B*T*d data
             audio_batch = tf.squeeze(audio_batch, axis=-1)  # B*c*T
@@ -152,7 +152,7 @@ class WaveNet(object):
             # weight norm
             w_lc = g_lc * tf.nn.l2_normalize(w_lc, [0, 1])
 
-            lc_batch = tf.nn.bias_add(tf.nn.conv1d(lc_batch, w_lc, 1, 'SAME', data_format='NCW'), b_lc)
+            lc_batch = tf.nn.bias_add(tf.nn.conv1d(lc_batch, w_lc, 1, 'SAME', data_format='NCW'), b_lc, data_format='NCW')
 
             # gated conv
             in_act = audio_batch + lc_batch  # add local condtion
@@ -166,7 +166,7 @@ class WaveNet(object):
             g_skip = create_variable('g_skip', [self.skip_channels])
             # weight norm
             w_skip = g_skip * tf.nn.l2_normalize(w_skip, [0, 1])
-            skip_output = tf.nn.bias_add(tf.nn.conv1d(acts, w_skip, 1, 'SAME', data_format='NCW'), b_skip)
+            skip_output = tf.nn.bias_add(tf.nn.conv1d(acts, w_skip, 1, 'SAME', data_format='NCW'), b_skip, data_format='NCW')
 
             # residual conv1d
             w_res = create_variable('w_res', [1, self.residual_channels, self.residual_channels])
@@ -175,7 +175,7 @@ class WaveNet(object):
             g_res = create_variable('g_res', [self.residual_channels])
             w_res = g_res * tf.nn.l2_normalize(w_res)
 
-            res_output = tf.nn.bias_add(tf.nn.conv1d(acts, w_res, 1, 'SAME', data_format='NCW'), b_res)
+            res_output = tf.nn.bias_add(tf.nn.conv1d(acts, w_res, 1, 'SAME', data_format='NCW'), b_res, data_format='NCW')
 
             return res_output + input, skip_output
 

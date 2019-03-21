@@ -168,6 +168,13 @@ def main():
     loss = compute_waveglow_loss(output_audio, log_s_list, log_det_W_list, sigma=hparams.sigma)
     grads = optimizer.compute_gradients(loss, var_list=tf.trainable_variables())
 
+    # statistic the gradients
+    for i, grad in enumerate(grads):
+        if grad[0] is None:
+            continue
+
+        tf.summary.histogram(grad[1].name, grad[0])
+
     # # gradient clipping
     # gradients = [grad for grad, var in averaged_gradients]
     # params = [var for grad, var in averaged_gradients]

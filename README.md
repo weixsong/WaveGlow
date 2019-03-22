@@ -48,6 +48,8 @@ Example waves by **tf.nn.conv2d** are in samples/tf_conv2d_as_dilated_conv
 
 In implementation [b04901014/waveglow-tensorflow](https://github.com/b04901014/waveglow-tensorflow), the author also used **tf.nn.conv2d** for dilated convolution, this code convergence but **very very slow**. So there maybe something wrong in my usage.
 
+VERIFIED: tf.nn.conv2d with data format **NCHW** convergences, but **NHWC** does not convergence.
+
 ## private dilated 1D convolution 
 **tf.nn.conv2d()** for dilated convolution did not convergence as expected in my experiments, so I changed the dilated convolution to implementation from [tensorflow-wavenet](https://github.com/ibab/tensorflow-wavenet).
 

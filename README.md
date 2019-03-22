@@ -12,6 +12,9 @@ I spent lots of time to investigate what's wrong with my code by using **tf.nn.c
 
 And, I tried using **tf.nn.conv2d()** by data format **NCHW**, then the model convergences quickly as expected, see example in <code>samples/tf_conv2d_NCHW</code>, **so there is a bug in Tensorflow's dilated convolution with data format NHWC**.
 
+* **tf.nn.conv2d()** with data format **NHWC** implementation is in branch <code>tf_dilated_conv</code>
+* **tf.nn.conv2d()** with data format **NCHW** implementation is in branch <code>tf_dilated_conv_channel_first</code>
+
 # How to run it
 ## step1: process data
 process data by **preprocess_data.py**, following the command:

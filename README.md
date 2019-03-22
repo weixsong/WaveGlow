@@ -1,11 +1,22 @@
 # WaveGlow
 Tensorflow Implementation of [WaveGlow](https://arxiv.org/abs/1811.00002)
 
+# ATTENTION PLEASE
+**ATTENTION**: I have verified that if you use **tf.nn.conv2d()** for dilated convolution with data format **NHWC**, the model does not convergence. I have tried at least more that 30 experiments.
+
+Because **tf.nn.conv2d()** with data format **NHWC** does not convergence, so in master branch I changed the dilated convolution implementation to implementation in [tensorflow-wavenet](https://github.com/ibab/tensorflow-wavenet).
+
+In my experiment with **tf.nn.conv2d()** by data format **NHWC**, even after **652K** steps the model still did not convergence. See example in <code>./samples/tf_conv2d_as_dilated_conv/</code>
+
+I spent lots of time to investigate what's wrong with my code by using **tf.nn.conv2d** with data format **NHWC**, after the private implemented dilated convolution convergences as expected, so I doubt there maybe a bug in Tensorflow's implementation for dilated convolution. 
+
+And, I tried using **tf.nn.conv2d()** by data format **NCHW**, then the model convergences quickly as expected, see example in <code>samples/tf_conv2d_NCHW</code>, **so there is a bug in Tensorflow's dilated convolution with data format NHWC**.
+
 # How to run it
 ## step1: process data
 process data by **preprocess_data.py**, following the command:
 ```
-python preprocess_data.py --wave_dir=corpus\wavs --mel_dir=corpus\mels --data_dir=corpus\
+python preprocess_data.py --wave_dir=corpus\wavs --mel_dir=corpus\mels --data_dir=corpus
 ```
 
 ## step2: train model
@@ -19,7 +30,6 @@ model parameters are in file params.py
 # TODO
 * add transposed convolution for local condition upsamling
 * add bi-directional local condition encoding
-* Need to verify what's wrong in my usage of tf.nn.conv2d()
 
 # Issues
 ## tf.nn.conv2d for dilated convlution does not covergence

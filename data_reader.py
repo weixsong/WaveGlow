@@ -100,6 +100,8 @@ class DataReader(object):
                 else:
                     pass
 
+                # TODO: add random-ness for the data-generator
+
                 while len(audio) >= self.sample_size and len(lc_features) >= self.lc_frames:
                     audio_piece = audio[:self.sample_size, :]
                     lc_piece = lc_features[:self.lc_frames, :]

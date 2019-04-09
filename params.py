@@ -37,10 +37,10 @@ hparams = tf.contrib.training.HParams(
     # upsampling by transposed conv
     transposed_upsampling=False,
     transposed_conv_layers=2,
-    transposed_conv_layer1_stride=18,
-    transposed_conv_layer2_stride=20,
-    transposed_conv_layer1_filter_width=18*5,  # filter width greater than stride, then could leverage context lc
-    transposed_conv_layer2_filter_width=20*5,
+    transposed_conv_layer1_stride=16,
+    transposed_conv_layer2_stride=16,
+    transposed_conv_layer1_filter_width=16*5,  # filter width greater than stride, then could leverage context lc
+    transposed_conv_layer2_filter_width=16*5,
     transposed_conv_channels=128,
 
     # wavenet

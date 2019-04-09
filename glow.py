@@ -230,6 +230,27 @@ class WaveGlow(object):
 
         return local_condition_batch  # B*T*(lstm_channel*2)
 
+    def create_transposed_conv1d(self, lc_batch):
+        with tf.variable_scope('transpoed_conv'):
+            # transposed conv layer 1
+            lc_shape = tf.shape(lc_batch)
+            batch_size, lc_length, lc_dim = lc_shape[0], lc_shape[1], lc_shape[2]
+            filter1 = create_variable('layer1', [hparams.transposed_conv_layer1_filter_width, hparams.transposed_conv_channels, self.lc_dim])
+            stride1 = hparams.transposed_conv_layer1_stride
+            output_shape = [batch_size, lc_length * stride1, hparams.transposed_conv_channels]
+            lc_batch = tf.contrib.nn.conv1d_transpose(lc_batch, filter1, output_shape, stride=stride1)
+
+            # transposed conv layer 2
+            lc_shape = tf.shape(lc_batch)
+            batch_size, lc_length, lc_dim = lc_shape[0], lc_shape[1], lc_shape[2]
+            filter2 = create_variable('layer2',
+                                      [hparams.transposed_conv_layer2_filter_width, hparams.transposed_conv_channels, hparams.transposed_conv_channels])
+            stride2 = hparams.transposed_conv_layer2_stride
+            output_shape = [batch_size, lc_length * stride2, hparams.transposed_conv_channels]
+            lc_batch = tf.contrib.nn.conv1d_transpose(lc_batch, filter2, output_shape, stride=stride2)
+
+            return lc_batch
+
     def create_forward_network(self, audio_batch, lc_batch, name='Waveglow'):
         '''
         :param audio_batch: B*T*1
@@ -245,7 +266,11 @@ class WaveGlow(object):
                 # local condition bi-directional encoding
                 lc_batch = self.create_lc_blstm_network(lc_batch)
 
-                # up-sampling
+            if hparams.transposed_upsampling:
+                # upsampling by transposed conv
+                lc_batch = self.create_transposed_conv1d(lc_batch)
+            elif hparams.lc_encode and hparams.transposed_upsampling is False:
+                # up-sampling in tf code by directly copy
                 lc_batch = tf.tile(lc_batch, [1, 1, hparams.upsampling_rate])
                 lc_batch = tf.reshape(lc_batch, [batch, -1, self.lc_dim])
 

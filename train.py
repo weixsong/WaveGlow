@@ -235,10 +235,12 @@ def main():
         for step in range(saved_global_step + 1, hparams.train_steps):
             audio, lc = reader.dequeue(num_elements=hparams.batch_size * args.ngpu)
 
-            if hparams.lc_encode:
+            if hparams.lc_encode or hparams.transposed_upsampling:
+                # if using local condition bi-lstm encoding or tranposed conv upsampling, no need to upsample
+                # bi-lstm, upsamle will be done in the tf code
                 lc = np.reshape(lc, [hparams.batch_size * args.ngpu, -1, hparams.num_mels])
             else:
-                # upsampling local condition
+                # upsampling by directly repeat
                 lc = np.tile(lc, [1, 1, hparams.upsampling_rate])
                 lc = np.reshape(lc, [hparams.batch_size * args.ngpu, -1, hparams.num_mels])
 

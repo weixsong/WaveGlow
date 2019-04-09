@@ -34,10 +34,6 @@ python train.py --filelist=xxx --wave_dir=xxx --lc_dir=xxx
 model parameters are in file params.py
 
 
-# TODO
-* add transposed convolution for local condition upsamling
-* add bi-directional local condition encoding
-
 # Issues
 ## tf.nn.conv2d for dilated convlution does not covergence
 In my first implementation of WaveGlow, I used **tf.nn.conv2d** to do dilated convolutions, the 3D Tensor(B\*T\*depth) is reshaped to 4D Tensor (B\*1\*T\*depth), and then leverage **tf.nn.conv2d** to do dilated convolution, but after many experiments I found that **tf.nn.conv2d** with dilated convolution does not convergence as expected. **For a long time, I have suspected that there maybe a bug in my implementation.**

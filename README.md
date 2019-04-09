@@ -35,6 +35,7 @@ model parameters are in file params.py
 
 
 # TODO
+* Add random-ness to the data generator to generate different audio and spectrum in each epoch, add some random shift. Data argumentation.
 * add transposed convolution for local condition upsamling
 * add bi-directional local condition encoding
 

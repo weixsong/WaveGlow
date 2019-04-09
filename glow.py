@@ -321,7 +321,11 @@ class WaveGlow(object):
                 # local condition bi-directional encoding
                 lc_batch = self.create_lc_blstm_network(lc_batch)
 
-                # up-sampling
+            if hparams.transposed_upsampling:
+                # upsampling by transposed conv
+                lc_batch = self.create_transposed_conv1d(lc_batch)
+            elif hparams.lc_encode and hparams.transposed_upsampling is False:
+                # up-sampling in tf code by directly copy
                 lc_batch = tf.tile(lc_batch, [1, 1, hparams.upsampling_rate])
                 lc_batch = tf.reshape(lc_batch, [batch, -1, self.lc_dim])
 

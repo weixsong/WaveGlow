@@ -100,7 +100,14 @@ class DataReader(object):
                 else:
                     pass
 
-                # TODO: add random-ness for the data-generator
+                # add random-ness for the data-generator
+                frames = len(lc_features)
+                if frames > self.lc_frames:
+                    max_frame_start = frames - self.lc_frames
+                    lc_start = random.randint(0, max_frame_start)
+
+                    audio = audio[lc_start*self.upsample_rate:, :]
+                    lc_features = lc_features[lc_start:, :]
 
                 while len(audio) >= self.sample_size and len(lc_features) >= self.lc_frames:
                     audio_piece = audio[:self.sample_size, :]

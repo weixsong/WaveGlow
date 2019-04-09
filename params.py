@@ -29,6 +29,11 @@ hparams = tf.contrib.training.HParams(
     n_early_every=4,
     n_early_size=2,
 
+    # local condition encoding
+    lc_encode=True,
+    lc_encode_layers=2,
+    lc_encode_size=128,
+
     # wavenet
     n_layers=8,
     residual_channels=256,

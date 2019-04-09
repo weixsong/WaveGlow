@@ -234,9 +234,13 @@ def main():
     try:
         for step in range(saved_global_step + 1, hparams.train_steps):
             audio, lc = reader.dequeue(num_elements=hparams.batch_size * args.ngpu)
-            # upsampling local condition
-            lc = np.tile(lc, [1, 1, hparams.upsampling_rate])
-            lc = np.reshape(lc, [hparams.batch_size * args.ngpu, -1, hparams.num_mels])
+
+            if hparams.lc_encode:
+                lc = np.reshape(lc, [hparams.batch_size * args.ngpu, -1, hparams.num_mels])
+            else:
+                # upsampling local condition
+                lc = np.tile(lc, [1, 1, hparams.upsampling_rate])
+                lc = np.reshape(lc, [hparams.batch_size * args.ngpu, -1, hparams.num_mels])
 
             start_time = time.time()
             if step % 50 == 0 and args.store_metadata:

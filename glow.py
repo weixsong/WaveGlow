@@ -201,12 +201,34 @@ class WaveNet(object):
 
 class WaveGlow(object):
     def __init__(self, lc_dim=80, n_flows=12, n_group=8, n_early_every=4, n_early_size=2):
+        self.mel_dim = hparams.num_mels
         self.lc_dim = lc_dim
         self.n_flows = n_flows
         self.n_group = n_group
         self.n_early_every = n_early_every
         self.n_early_size = n_early_size
         self.n_remaining_channels = n_group
+
+        if hparams.lc_encode:
+            self.lc_dim = hparams.lc_encode_size * 2
+
+    def create_lc_blstm_network(self, local_condition_batch):
+        lstm_size = hparams.lc_encode_size
+        lstm_layers = hparams.lc_encode_layers
+
+        with tf.variable_scope("lc_blstm_embedding"):
+            for layer_index in range(lstm_layers):
+                with tf.variable_scope('layer_{}'.format(layer_index)):
+                    fw_cell = tf.contrib.rnn.LSTMCell(lstm_size)
+                    bw_cell = tf.contrib.rnn.LSTMCell(lstm_size)
+
+                    outputs, states = tf.nn.bidirectional_dynamic_rnn(fw_cell,
+                                                                      bw_cell,
+                                                                      local_condition_batch,
+                                                                      dtype=tf.float32)
+                    local_condition_batch = tf.concat(outputs, axis=2)
+
+        return local_condition_batch  # B*T*(lstm_channel*2)
 
     def create_forward_network(self, audio_batch, lc_batch, name='Waveglow'):
         '''
@@ -218,6 +240,14 @@ class WaveGlow(object):
         with tf.variable_scope(name):
             # TODO: make local condition interleveled in each dimension
             batch, length = tf.shape(audio_batch)[0], tf.shape(audio_batch)[1]
+
+            if hparams.lc_encode:
+                # local condition bi-directional encoding
+                lc_batch = self.create_lc_blstm_network(lc_batch)
+
+                # up-sampling
+                lc_batch = tf.tile(lc_batch, [1, 1, hparams.upsampling_rate])
+                lc_batch = tf.reshape(lc_batch, [batch, -1, self.lc_dim])
 
             # sequeeze
             audio_batch = tf.reshape(audio_batch, [batch, -1, self.n_group])  # B*T'*8
@@ -255,13 +285,21 @@ class WaveGlow(object):
 
     def infer(self, lc_batch, sigma=1.0, name='Waveglow'):
         with tf.variable_scope(name):
+            batch = tf.shape(lc_batch)[0]
             # compute the remaining channels
             remaining_channels = self.n_group
             for k in range(0, self.n_flows):
                 if k % self.n_early_every == 0 and k > 0:
                     remaining_channels = remaining_channels - self.n_early_size
 
-            batch = tf.shape(lc_batch)[0]
+            if hparams.lc_encode:
+                # local condition bi-directional encoding
+                lc_batch = self.create_lc_blstm_network(lc_batch)
+
+                # up-sampling
+                lc_batch = tf.tile(lc_batch, [1, 1, hparams.upsampling_rate])
+                lc_batch = tf.reshape(lc_batch, [batch, -1, self.lc_dim])
+
             # need to make sure that length of lc_batch be multiple times of n_group
             pad = self.n_group - 1 - (tf.shape(lc_batch)[1] + self.n_group - 1) % self.n_group
             lc_batch = tf.pad(lc_batch, [[0, 0], [0, pad], [0, 0]])

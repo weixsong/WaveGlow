@@ -47,9 +47,14 @@ def main():
         args = get_arguments()
 
         lc = read_binary_lc(args.lc, hparams.num_mels)
-        # upsampling local condition
-        lc = np.tile(lc, [1, 1, hparams.upsampling_rate])
-        lc = np.reshape(lc, [1, -1, hparams.num_mels])
+
+        if hparams.lc_encode or hparams.transposed_upsampling:
+            lc = np.reshape(lc, [1, -1, hparams.num_mels])
+        else:
+            # upsampling local condition
+            lc = np.tile(lc, [1, 1, hparams.upsampling_rate])
+            lc = np.reshape(lc, [1, -1, hparams.num_mels])
+
         print(lc.shape)
 
         glow = WaveGlow(lc_dim=hparams.num_mels,

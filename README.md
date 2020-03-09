@@ -37,8 +37,8 @@ model parameters are in file params.py
 # Issues
 ## tf.nn.conv2d for dilated convlution does not covergence
 In my first implementation of WaveGlow, I used **tf.nn.conv2d** to do dilated convolutions, the 3D Tensor(B\*T\*depth) is reshaped to 4D Tensor (B\*1\*T\*depth), and then leverage **tf.nn.conv2d** to do dilated convolution, but after many experiments I found that **tf.nn.conv2d** with dilated convolution does not convergence as expected. **For a long time, I have suspected that there maybe a bug in my implementation.**
-* with a learning_rate=0.0001, the model does not convergence even after 652K steps.
-* with a learning_rate=0.001, the model does not convergence even after 552K steps.
+* with a learning_rate=1e-4, the model does not convergence even after 652K steps.
+* with a learning_rate=1e-3, the model does not convergence even after 552K steps.
 
 Example waves by **tf.nn.conv2d** are in samples/tf_conv2d_as_dilated_conv
 

@@ -46,6 +46,6 @@ In implementation [b04901014/waveglow-tensorflow](https://github.com/b04901014/w
 
 VERIFIED: tf.nn.conv2d with data format **NCHW** convergences, but **NHWC** does not convergence.
 
-## private dilated 1D convolution 
+## Customized dilated 1D convolution 
 **tf.nn.conv2d()** for dilated convolution did not convergence as expected in my experiments, so I changed the dilated convolution to implementation from [tensorflow-wavenet](https://github.com/ibab/tensorflow-wavenet).
 

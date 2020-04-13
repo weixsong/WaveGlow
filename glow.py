@@ -269,7 +269,7 @@ class WaveGlow(object):
         :return:
         '''
         with tf.variable_scope(name):
-            # TODO: make local condition interleveled in each dimension
+            # TODO: make local condition interleaved in each dimension
             batch, length = tf.shape(audio_batch)[0], tf.shape(audio_batch)[1]
 
             if hparams.lc_encode:

@@ -12,7 +12,7 @@ from scipy.io import wavfile
 from datetime import datetime
 from glow import WaveGlow, compute_waveglow_loss
 from tensorflow.python.client import timeline
-
+from data_reader import read_binary_lc
 
 STARTED_DATESTRING = "{0:%Y-%m-%dT%H-%M-%S}".format(datetime.now())
 
@@ -141,6 +141,9 @@ def main():
     if not os.path.exists(args.logdir):
         os.makedirs(args.logdir)
 
+    args.gen_wave_dir = os.path.join(args.logdir, 'wave')
+    os.makedirs(args.gen_wave_dir, exist_ok=True)
+
     assert hparams.upsampling_rate == hparams.hop_length, 'upsamling rate should be same as hop_length'
 
     # Create coordinator.
@@ -206,6 +209,11 @@ def main():
     run_metadata = tf.RunMetadata()
     summaries = tf.summary.merge_all()
 
+    # inference for audio
+    with tf.variable_scope(tf.get_variable_scope(), reuse=True):
+        lc_placeholder_infer = tf.placeholder(tf.float32, shape=[1, None, hparams.num_mels], name='lc_infer')
+        audio_infer_ops = glow.infer(lc_placeholder_infer, sigma=hparams.sigma)
+
     # Set up session
     init = tf.global_variables_initializer()
     sess.run(init)
@@ -245,14 +253,15 @@ def main():
                 lc = np.reshape(lc, [hparams.batch_size * args.ngpu, -1, hparams.num_mels])
 
             start_time = time.time()
-            if step % 50 == 0 and args.store_metadata:
+            if step % 100 == 0 and args.store_metadata:
                 # Slow run that stores extra information for debugging.
                 print('Storing metadata')
                 run_options = tf.RunOptions(
                     trace_level=tf.RunOptions.FULL_TRACE)
                 summary, loss_value, _, lr = sess.run(
                     [summaries, loss, train_ops, learning_rate],
-                    feed_dict={audio_placeholder: audio, lc_placeholder: lc},
+                    feed_dict={audio_placeholder: audio,
+                               lc_placeholder: lc},
                     options=run_options,
                     run_metadata=run_metadata)
                 writer.add_summary(summary, step)
@@ -268,13 +277,17 @@ def main():
                 writer.add_summary(summary, step)
 
             duration = time.time() - start_time
-            step_log = 'step {:d} - loss = {:.3f}, lr={:.8f}, time cost={:4f}'\
+            step_log = 'step {:d} - loss = {:.3f}, lr={:.8f}, time cost={:4f}' \
                 .format(step, loss_value, lr, duration)
             print(step_log)
 
             if step % hparams.save_model_every == 0:
                 save(saver, sess, args.logdir, step)
                 last_saved_step = step
+
+            # if step % hparams.gen_test_wave_every == 0:
+            if step % 10 == 0:
+                generate_wave(lc_placeholder_infer, audio_infer_ops, sess, step, args.gen_wave_dir)
 
     except KeyboardInterrupt:
         # Introduce a line break after ^C is displayed so save message
@@ -285,6 +298,23 @@ def main():
             save(saver, sess, args.logdir, step)
         coord.request_stop()
         coord.join()
+
+
+def generate_wave(lc_placeholder_infer, audio_infer_ops, sess, step, path):
+    save_name = str(step).zfill(8) + '.wav'
+    save_name = os.path.join(path, save_name)
+    lc = read_binary_lc(hparams.gen_file, hparams.num_mels)
+
+    if hparams.lc_encode or hparams.transposed_upsampling:
+        lc = np.reshape(lc, [1, -1, hparams.num_mels])
+    else:
+        # upsampling local condition
+        lc = np.tile(lc, [1, 1, hparams.upsampling_rate])
+        lc = np.reshape(lc, [1, -1, hparams.num_mels])
+
+    audio_output = sess.run(audio_infer_ops, feed_dict={lc_placeholder_infer: lc})
+    audio_output = audio_output.flatten()
+    write_wav(audio_output, hparams.sample_rate, save_name)
 
 
 if __name__ == '__main__':

@@ -100,7 +100,7 @@ class DataReader(object):
                 else:
                     pass
 
-                # add random-ness for the data-generator
+                # add randomness for the data-generator
                 frames = len(lc_features)
                 if frames > self.lc_frames:
                     max_frame_start = frames - self.lc_frames

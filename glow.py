@@ -88,7 +88,7 @@ def scaled_dot_product_attention(Q, K, V, is_training=True, mask=None, q_mask=No
     assert d == Q.shape[-1] == K.shape[-1] == V.shape[-1]
 
     out = tf.matmul(Q, tf.transpose(K, [0, 2, 1]))  # [h*batch, q_size, k_size]
-    out = out / d ** 0.5                            # scaled by sqrt(d_k), [h*batch, q_size, k_size]
+    out = out / d ** 0.5  # scaled by sqrt(d_k), [h*batch, q_size, k_size]
 
     if mask is not None:
         # masking out (0.0) => setting to -inf.
@@ -208,8 +208,8 @@ def transformer_encoder(inputs, input_lengths, is_training=True):
     # mask for self-attention
     mask = tf.sequence_mask(input_lengths, maxlen=seq_length)  # B*T
     mask = tf.cast(mask, tf.float32)
-    mask = tf.expand_dims(mask, axis=1)                  # B*1*T
-    mask = tf.tile(mask, [1, seq_length, 1])             # B*T*T
+    mask = tf.expand_dims(mask, axis=1)  # B*1*T
+    mask = tf.tile(mask, [1, seq_length, 1])  # B*T*T
 
     # query mask
     q_mask = tf.sequence_mask(input_lengths, maxlen=seq_length)  # B*T
@@ -226,7 +226,7 @@ def transformer_encoder(inputs, input_lengths, is_training=True):
                        activation, dropout_rate=0.2, is_training=is_training, scope='conv_%d' % i)
 
         # linear projection
-        x = tf.layers.dense(x, hparams.encoder_conv_channels)       # B*T*256
+        x = tf.layers.dense(x, hparams.encoder_conv_channels)  # B*T*256
 
         # Position embedding
         x += positional_encoding(x, maxlen=hparams.pos_encoding_maxlen, masking=False)
@@ -424,7 +424,7 @@ class WaveNet(object):
             lc_batch = tf.nn.bias_add(tf.nn.conv1d(lc_batch, w_lc, 1, 'SAME'), b_lc)
 
             # gated conv
-            in_act = audio_batch + lc_batch  # add local condtion
+            in_act = audio_batch + lc_batch  # add local condition
             filter = tf.nn.tanh(in_act[:, :, :self.residual_channels])
             gate = tf.nn.sigmoid(in_act[:, :, self.residual_channels:])
             acts = gate * filter
@@ -494,6 +494,7 @@ class WaveGlow(object):
             stride1 = hparams.transposed_conv_layer1_stride
             output_shape = [batch_size, lc_length * stride1, hparams.transposed_conv_channels]
             lc_batch = tf.contrib.nn.conv1d_transpose(lc_batch, filter1, output_shape, stride=stride1)
+            # tf.nn.conv1d_transpose()
             lc_batch = tf.nn.relu(lc_batch)
 
             # transposed conv layer 2

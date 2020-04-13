@@ -243,7 +243,7 @@ class WaveGlow(object):
                                        input_lc_dim])
             stride1 = hparams.transposed_conv_layer1_stride
             output_shape = [batch_size, lc_length * stride1, hparams.transposed_conv_channels]
-            lc_batch = tf.contrib.nn.conv1d_transpose(lc_batch, filter1, output_shape, stride=stride1)
+            lc_batch = tf.contrib.nn.conv1d_transpose(lc_batch, filter1, output_shape, strides=stride1)
             # tf.nn.conv1d_transpose()
             lc_batch = tf.nn.relu(lc_batch)
 
@@ -255,7 +255,7 @@ class WaveGlow(object):
                                        hparams.transposed_conv_channels])
             stride2 = hparams.transposed_conv_layer2_stride
             output_shape = [batch_size, lc_length * stride2, hparams.transposed_conv_channels]
-            lc_batch = tf.contrib.nn.conv1d_transpose(lc_batch, filter2, output_shape, stride=stride2)
+            lc_batch = tf.contrib.nn.conv1d_transpose(lc_batch, filter2, output_shape, strides=stride2)
             lc_batch = tf.nn.relu(lc_batch)
 
             return lc_batch

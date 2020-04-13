@@ -1,6 +1,10 @@
 # WaveGlow
 Tensorflow Implementation of [WaveGlow](https://arxiv.org/abs/1811.00002)
 
+# TODO
+* add code for generate the wave on the fly during training for fast evaluate the model quality.
+
+
 # ATTENTION PLEASE
 **ATTENTION**: I have verified that if you use **tf.nn.conv2d()** for dilated convolution with data format **NHWC**, the model does not convergence. I have tried at least more that 30 experiments.
 

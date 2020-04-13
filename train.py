@@ -285,8 +285,7 @@ def main():
                 save(saver, sess, args.logdir, step)
                 last_saved_step = step
 
-            # if step % hparams.gen_test_wave_every == 0:
-            if step % 10 == 0:
+            if step % hparams.gen_test_wave_every == 0:
                 generate_wave(lc_placeholder_infer, audio_infer_ops, sess, step, args.gen_wave_dir)
 
     except KeyboardInterrupt:

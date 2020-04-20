@@ -23,7 +23,7 @@ hparams = tf.contrib.training.HParams(
     sigma=0.707,
 
     # network
-    sample_size=64000,
+    sample_size=25600,
     batch_size=1,
     upsampling_rate=256,  # same as hop_length
     n_flows=12,

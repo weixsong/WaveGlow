@@ -206,7 +206,6 @@ def main():
     # Set up logging for TensorBoard.
     writer = tf.summary.FileWriter(args.logdir)
     writer.add_graph(tf.get_default_graph())
-    run_metadata = tf.RunMetadata()
     summaries = tf.summary.merge_all()
 
     # inference for audio
@@ -255,22 +254,12 @@ def main():
             start_time = time.time()
             if step % 100 == 0 and args.store_metadata:
                 # Slow run that stores extra information for debugging.
-                print('Storing metadata')
-                run_options = tf.RunOptions(
-                    trace_level=tf.RunOptions.FULL_TRACE)
                 summary, loss_value, _, lr = sess.run(
                     [summaries, loss, train_ops, learning_rate],
                     feed_dict={audio_placeholder: audio,
-                               lc_placeholder: lc},
-                    options=run_options,
-                    run_metadata=run_metadata)
+                               lc_placeholder: lc}
+                )
                 writer.add_summary(summary, step)
-                writer.add_run_metadata(run_metadata,
-                                        'step_{:04d}'.format(step))
-                tl = timeline.Timeline(run_metadata.step_stats)
-                timeline_path = os.path.join(args.logdir, 'timeline.trace')
-                with open(timeline_path, 'w') as f:
-                    f.write(tl.generate_chrome_trace_format(show_memory=True))
             else:
                 summary, loss_value, _, lr = sess.run([summaries, loss, train_ops, learning_rate],
                                                       feed_dict={audio_placeholder: audio, lc_placeholder: lc})

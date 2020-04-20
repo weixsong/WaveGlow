@@ -136,18 +136,15 @@ class WaveNet(object):
             w_s = g_s * tf.nn.l2_normalize(w_s, axis=[0, 1])
             audio_batch = tf.nn.bias_add(tf.nn.conv1d(audio_batch, w_s, 1, 'SAME'), b_s)
 
-            skip_outputs = []
             for i in range(self.n_layers):
                 dilation = 2 ** i
-                audio_batch, _skip_output = self.dilated_conv1d(audio_batch, lc_batch, dilation)
-                skip_outputs.append(_skip_output)
+                audio_batch = self.dilated_conv1d(audio_batch, lc_batch, dilation)
 
             # post process
-            skip_output = sum(skip_outputs)
             # learn scale and shift
-            w_e = create_variable_zeros('w_e', [1, self.skip_channels, self.n_in_channels * 2])
+            w_e = create_variable_zeros('w_e', [1, self.residual_channels, self.n_in_channels * 2])
             b_e = create_bias_variable('b_e', [self.n_in_channels * 2])
-            audio_batch = tf.nn.bias_add(tf.nn.conv1d(skip_output, w_e, 1, 'SAME'), b_e)
+            audio_batch = tf.nn.bias_add(tf.nn.conv1d(audio_batch, w_e, 1, 'SAME'), b_e)
             return audio_batch[:, :, :self.n_in_channels], audio_batch[:, :, self.n_in_channels:]
 
     def dilated_conv1d(self, audio_batch, lc_batch, dilation=1):
@@ -155,7 +152,6 @@ class WaveNet(object):
         with tf.variable_scope('dilation_%d' % (dilation,)):
             # compute gate & filter
             w_g_f = create_variable('w_g_f', [self.kernel_size, self.residual_channels, 2 * self.residual_channels])
-            b_g_f = create_bias_variable('b_g_f', [2 * self.residual_channels])
             g_g_f = create_variable('g_g_f', [2 * self.residual_channels])
 
             # weight norm
@@ -179,14 +175,6 @@ class WaveNet(object):
             gate = tf.nn.sigmoid(in_act[:, :, self.residual_channels:])
             acts = gate * filter
 
-            # skip
-            w_skip = create_variable('w_skip', [1, self.residual_channels, self.skip_channels])
-            b_skip = create_bias_variable('b_skip', [self.skip_channels])
-            g_skip = create_variable('g_skip', [self.skip_channels])
-            # weight norm
-            w_skip = g_skip * tf.nn.l2_normalize(w_skip, [0, 1])
-            skip_output = tf.nn.bias_add(tf.nn.conv1d(acts, w_skip, 1, 'SAME'), b_skip)
-
             # residual conv1d
             w_res = create_variable('w_res', [1, self.residual_channels, self.residual_channels])
             b_res = create_bias_variable('b_res', [self.residual_channels])
@@ -196,7 +184,7 @@ class WaveNet(object):
 
             res_output = tf.nn.bias_add(tf.nn.conv1d(acts, w_res, 1, 'SAME'), b_res)
 
-            return res_output + input, skip_output
+            return res_output + input
 
 
 class WaveGlow(object):

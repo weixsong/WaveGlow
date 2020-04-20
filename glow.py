@@ -144,7 +144,10 @@ class WaveNet(object):
             # learn scale and shift
             w_e = create_variable_zeros('w_e', [1, self.residual_channels, self.n_in_channels * 2])
             b_e = create_bias_variable('b_e', [self.n_in_channels * 2])
+            g_skip = create_variable('g_skip', [self.n_in_channels * 2])
+            w_e = g_skip * tf.nn.l2_normalize(w_e, axis=[0, 1])
             audio_batch = tf.nn.bias_add(tf.nn.conv1d(audio_batch, w_e, 1, 'SAME'), b_e)
+
             return audio_batch[:, :, :self.n_in_channels], audio_batch[:, :, self.n_in_channels:]
 
     def dilated_conv1d(self, audio_batch, lc_batch, dilation=1):

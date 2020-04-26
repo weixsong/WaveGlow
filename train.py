@@ -135,6 +135,24 @@ def average_gradients(tower_grads):
     return average_grads
 
 
+def stats_graph(graph):
+    flops = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.float_operation())
+    params = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.trainable_variables_parameter())
+    print('FLOPs: {};    Trainable params: {}'.format(flops.total_float_ops, params.tra))
+
+
+def count():
+    total_parameters = 0
+    for variable in tf.trainable_variables():
+        # shape is an array of tf.Dimension
+        shape = variable.get_shape()
+        variable_parameters = 1
+        for dim in shape:
+            variable_parameters *= dim.value
+        total_parameters += variable_parameters
+    return total_parameters
+
+
 def main():
     args = get_arguments()
     args.logdir = os.path.join(hparams.logdir_root, args.run_name)
@@ -219,6 +237,12 @@ def main():
     sess.run(init)
     print('parameters initialization finished')
 
+    # stats_graph(tf.get_default_graph())
+    total_parameters = count()
+    print("######################################################")
+    print("### Total Trainable Params is {} ###".format(total_parameters))
+    print("######################################################")
+
     saver = tf.train.Saver(var_list=tf.trainable_variables(), max_to_keep=30)
 
     saved_global_step = 0
@@ -243,7 +267,7 @@ def main():
         for step in range(saved_global_step + 1, hparams.train_steps):
             audio, lc = reader.dequeue(num_elements=hparams.batch_size * args.ngpu)
 
-            if hparams.lc_encode or hparams.transposed_upsampling:
+            if hparams.lc_conv1d or hparams.lc_encode or hparams.transposed_upsampling:
                 # if using local condition bi-lstm encoding or tranposed conv upsampling, no need to upsample
                 # bi-lstm, upsamle will be done in the tf code
                 lc = np.reshape(lc, [hparams.batch_size * args.ngpu, -1, hparams.num_mels])

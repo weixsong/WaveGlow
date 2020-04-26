@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from params import hparams
+from params import hparams as hp
 
 
 def create_variable(name, shape):
@@ -209,11 +210,31 @@ class WaveGlow(object):
         self.n_early_size = n_early_size
         self.n_remaining_channels = n_group
 
-        if hparams.lc_encode:
+        if hparams.lc_conv1d:
+            self.lc_dim = hparams.lc_conv1d_filter_num
+        elif hparams.lc_encode:
             self.lc_dim = hparams.lc_encode_size * 2
 
         if hparams.transposed_upsampling:
             self.lc_dim = hparams.transposed_conv_channels
+
+    def create_lc_conv1d(self, local_condition_batch):
+        in_c, out_c = hp.num_mels, hp.lc_conv1d_filter_num
+        filter_width = hp.lc_conv1d_filter_size
+        with tf.variable_scope("lc_conv1d"):
+            for i in range(hp.lc_conv1d_layers):
+                with tf.variable_scope('layer_{}'.format(i)):
+                    filter = create_variable('filter', [filter_width, in_c, out_c])
+                    bias = create_bias_variable('bias', [out_c])
+
+                    # conv1d
+                    local_condition_batch = tf.nn.conv1d(local_condition_batch, filter, 1, 'SAME')
+                    local_condition_batch = tf.nn.bias_add(local_condition_batch, bias)
+                    local_condition_batch = tf.nn.relu(local_condition_batch)
+
+                    in_c, out_c = out_c, hp.lc_conv1d_filter_num
+
+        return local_condition_batch
 
     def create_lc_blstm_network(self, local_condition_batch):
         lstm_size = hparams.lc_encode_size
@@ -272,7 +293,9 @@ class WaveGlow(object):
             # TODO: make local condition interleaved in each dimension
             batch, length = tf.shape(audio_batch)[0], tf.shape(audio_batch)[1]
 
-            if hparams.lc_encode:
+            if hparams.lc_conv1d:
+                lc_batch = self.create_lc_conv1d(lc_batch)
+            elif hparams.lc_encode:
                 # local condition bi-directional encoding
                 lc_batch = self.create_lc_blstm_network(lc_batch)
 
@@ -283,7 +306,7 @@ class WaveGlow(object):
                     input_lc_dim = hparams.lc_encode_size * 2
 
                 lc_batch = self.create_transposed_conv1d(lc_batch, input_lc_dim)
-            elif hparams.lc_encode and hparams.transposed_upsampling is False:
+            elif hparams.lc_encode or hparams.lc_conv1d:
                 # up-sampling in tf code by directly copy
                 lc_batch = tf.tile(lc_batch, [1, 1, hparams.upsampling_rate])
                 lc_batch = tf.reshape(lc_batch, [batch, -1, self.lc_dim])
@@ -331,7 +354,9 @@ class WaveGlow(object):
                 if k % self.n_early_every == 0 and k > 0:
                     remaining_channels = remaining_channels - self.n_early_size
 
-            if hparams.lc_encode:
+            if hparams.lc_conv1d:
+                lc_batch = self.create_lc_conv1d(lc_batch)
+            elif hparams.lc_encode:
                 # local condition bi-directional encoding
                 lc_batch = self.create_lc_blstm_network(lc_batch)
 
@@ -342,7 +367,7 @@ class WaveGlow(object):
                     input_lc_dim = hparams.lc_encode_size * 2
 
                 lc_batch = self.create_transposed_conv1d(lc_batch, input_lc_dim)
-            elif hparams.lc_encode and hparams.transposed_upsampling is False:
+            elif hparams.lc_encode or hparams.lc_conv1d:
                 # up-sampling in tf code by directly copy
                 lc_batch = tf.tile(lc_batch, [1, 1, hparams.upsampling_rate])
                 lc_batch = tf.reshape(lc_batch, [batch, -1, self.lc_dim])

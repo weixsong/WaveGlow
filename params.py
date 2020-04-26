@@ -31,8 +31,14 @@ hparams = tf.contrib.training.HParams(
     n_early_every=4,
     n_early_size=2,
 
+    # local condition conv1d
+    lc_conv1d=True,
+    lc_conv1d_layers=2,
+    lc_conv1d_filter_size=5,
+    lc_conv1d_filter_num=128,
+
     # local condition encoding
-    lc_encode=True,
+    lc_encode=False,
     lc_encode_layers=2,
     lc_encode_size=128,
 

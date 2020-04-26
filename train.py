@@ -328,7 +328,7 @@ def generate_wave(lc_placeholder_infer, audio_infer_ops, sess, step, path):
     save_name = os.path.join(path, save_name)
     lc = read_binary_lc(hparams.gen_file, hparams.num_mels)
 
-    if hparams.lc_encode or hparams.transposed_upsampling:
+    if hparams.lc_conv1d or hparams.lc_encode or hparams.transposed_upsampling:
         lc = np.reshape(lc, [1, -1, hparams.num_mels])
     else:
         # upsampling local condition

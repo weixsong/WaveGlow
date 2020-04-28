@@ -56,4 +56,5 @@ hparams = tf.contrib.training.HParams(
     residual_channels=256,
     skip_channels=256,
     kernel_size=3,
+    conv1d_groups=4,
 )

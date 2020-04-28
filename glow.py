@@ -137,6 +137,15 @@ class WaveNet(object):
             w_s = g_s * tf.nn.l2_normalize(w_s, axis=[0, 1])
             audio_batch = tf.nn.bias_add(tf.nn.conv1d(audio_batch, w_s, 1, 'SAME'), b_s)
 
+            # process local condition
+            w_lc = create_variable('w_lc', [1, self.n_lc_dim, 2 * self.residual_channels])
+            b_lc = create_bias_variable('b_lc', [2 * self.residual_channels])
+            g_lc = create_variable('g_lc', [2 * self.residual_channels])
+            # weight norm
+            w_lc = g_lc * tf.nn.l2_normalize(w_lc, [0, 1])
+
+            lc_batch = tf.nn.bias_add(tf.nn.conv1d(lc_batch, w_lc, 1, 'SAME'), b_lc)
+
             skip_outputs = []
             for i in range(self.n_layers):
                 dilation = 2 ** i
@@ -164,15 +173,6 @@ class WaveNet(object):
 
             # dilated conv1d
             audio_batch = causal_conv(audio_batch, w_g_f, dilation, self.kernel_size)
-
-            # process local condition
-            w_lc = create_variable('w_lc', [1, self.n_lc_dim, 2 * self.residual_channels])
-            b_lc = create_bias_variable('b_lc', [2 * self.residual_channels])
-            g_lc = create_variable('g_lc', [2 * self.residual_channels])
-            # weight norm
-            w_lc = g_lc * tf.nn.l2_normalize(w_lc, [0, 1])
-
-            lc_batch = tf.nn.bias_add(tf.nn.conv1d(lc_batch, w_lc, 1, 'SAME'), b_lc)
 
             # gated conv
             in_act = audio_batch + lc_batch  # add local condition

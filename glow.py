@@ -57,10 +57,19 @@ def causal_conv(value, filter_, dilation, filter_width=3, name='causal_conv'):
         padded = tf.pad(value, padding)
         if dilation > 1:
             transformed = time_to_batch(padded, dilation)
-            conv = tf.nn.conv1d(transformed, filter_, stride=1, padding='VALID')
+            transformed = tf.expand_dims(transformed, axis=1)
+            filter_ = tf.expand_dims(filter_, axis=0)
+            # conv = tf.nn.conv1d(transformed, filter_, stride=1, padding='VALID')
+            # https://github.com/tensorflow/tensorflow/pull/25818
+            conv = tf.nn.conv2d(transformed, filter_, strides=[1, 1, 1, 1], padding='VALID')
+            conv = tf.squeeze(conv, axis=1)
             restored = batch_to_time(conv, dilation)
         else:
-            restored = tf.nn.conv1d(padded, filter_, stride=1, padding='VALID')
+            padded = tf.expand_dims(padded, axis=1)
+            filter_ = tf.expand_dims(filter_, axis=0)
+            # restored = tf.nn.conv1d(padded, filter_, stride=1, padding='VALID')
+            restored = tf.nn.conv2d(padded, filter_, strides=[1, 1, 1, 1], padding='VALID')
+            restored = tf.squeeze(restored, axis=1)
         # Remove excess elements at the end.
         result = tf.slice(restored,
                           [0, 0, 0],
@@ -155,8 +164,7 @@ class WaveNet(object):
         input = audio_batch
         with tf.variable_scope('dilation_%d' % (dilation,)):
             # compute gate & filter
-            w_g_f = create_variable('w_g_f', [self.kernel_size, self.residual_channels, 2 * self.residual_channels])
-            b_g_f = create_bias_variable('b_g_f', [2 * self.residual_channels])
+            w_g_f = create_variable('w_g_f', [self.kernel_size, self.residual_channels // hp.conv1d_groups, 2 * self.residual_channels])
             g_g_f = create_variable('g_g_f', [2 * self.residual_channels])
 
             # weight norm
@@ -166,13 +174,15 @@ class WaveNet(object):
             audio_batch = causal_conv(audio_batch, w_g_f, dilation, self.kernel_size)
 
             # process local condition
-            w_lc = create_variable('w_lc', [1, self.n_lc_dim, 2 * self.residual_channels])
-            b_lc = create_bias_variable('b_lc', [2 * self.residual_channels])
+            w_lc = create_variable('w_lc', [1, self.n_lc_dim // hp.conv1d_groups, 2 * self.residual_channels])
             g_lc = create_variable('g_lc', [2 * self.residual_channels])
             # weight norm
             w_lc = g_lc * tf.nn.l2_normalize(w_lc, [0, 1])
 
-            lc_batch = tf.nn.bias_add(tf.nn.conv1d(lc_batch, w_lc, 1, 'SAME'), b_lc)
+            w_lc = tf.expand_dims(w_lc, axis=0)
+            lc_batch = tf.expand_dims(lc_batch, axis=1)
+            lc_batch = tf.nn.conv2d(lc_batch, w_lc, strides=[1, 1, 1, 1], padding='SAME')
+            lc_batch = tf.squeeze(lc_batch, axis=1)
 
             # gated conv
             in_act = audio_batch + lc_batch  # add local condition

@@ -195,9 +195,11 @@ def main():
                 local_audio_placeholder = audio_placeholder[i * hparams.batch_size:(i + 1) * hparams.batch_size, :, :]
                 local_lc_placeholder = lc_placeholder[i * hparams.batch_size:(i + 1) * hparams.batch_size, :, :]
 
-                output_audio, log_s_list, log_det_W_list = glow.create_forward_network(local_audio_placeholder,
-                                                                                       local_lc_placeholder)
+                output_audio, log_s_list, log_det_W_list, early_loss = glow.create_forward_network(
+                                                                                local_audio_placeholder,
+                                                                                local_lc_placeholder)
                 loss = compute_waveglow_loss(output_audio, log_s_list, log_det_W_list, sigma=hparams.sigma)
+                loss = loss + early_loss
                 grads = optimizer.compute_gradients(loss, var_list=tf.trainable_variables())
 
                 tower_losses.append(loss)

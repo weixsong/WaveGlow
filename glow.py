@@ -325,15 +325,15 @@ class WaveGlow(object):
             audio_batch = tf.reshape(audio_batch, [batch, -1, self.n_group])  # B*T'*8
             lc_batch = tf.reshape(lc_batch, [batch, -1, self.lc_dim * self.n_group])  # B*T'*640
 
-            output_audio = []
+            early_losses = []
             log_s_list = []
             log_det_W_list = []
 
             for k in range(0, self.n_flows):
                 if k % self.n_early_every == 0 and k > 0:
-                    output_audio.append(audio_batch[:, :, :self.n_early_size])
-                    audio_batch = audio_batch[:, :, self.n_early_size:]
-                    self.n_remaining_channels -= self.n_early_size  # update remaining channels
+                    # no early output, add auxiliary loss for early layers
+                    early_loss = compute_waveglow_loss(audio_batch, log_s_list, log_det_W_list)
+                    early_losses.append(early_loss)
 
                 with tf.variable_scope('glow_%d' % (k,)):
                     # invertiable 1X1 conv
@@ -352,17 +352,14 @@ class WaveGlow(object):
 
                     log_s_list.append(log_s)
 
-            output_audio.append(audio_batch)
-            return tf.concat(output_audio, axis=-1), log_s_list, log_det_W_list
+            early_loss = sum(early_losses)
+            return audio_batch, log_s_list, log_det_W_list, early_loss
 
     def infer(self, lc_batch, sigma=1.0, name='Waveglow'):
         with tf.variable_scope(name):
             batch = tf.shape(lc_batch)[0]
             # compute the remaining channels
             remaining_channels = self.n_group
-            for k in range(0, self.n_flows):
-                if k % self.n_early_every == 0 and k > 0:
-                    remaining_channels = remaining_channels - self.n_early_size
 
             if hparams.lc_conv1d:
                 lc_batch = self.create_lc_conv1d(lc_batch)
@@ -405,14 +402,6 @@ class WaveGlow(object):
 
                     # inverse 1X1 conv
                     audio_batch = invertible1x1Conv(audio_batch, remaining_channels, forward=False)
-
-                # early output
-                if k % self.n_early_every == 0 and k > 0:
-                    z = tf.random_normal([shape[0], tf.shape(lc_batch)[1], self.n_early_size])
-                    z = z * sigma
-                    remaining_channels += self.n_early_size
-
-                    audio_batch = tf.concat([z, audio_batch], axis=-1)
 
             # reshape audio back to B*T*1
             audio_batch = tf.reshape(audio_batch, [shape[0], -1, 1])
